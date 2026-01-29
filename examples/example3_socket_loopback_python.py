@@ -18,6 +18,9 @@ import json
 import threading
 from datetime import datetime
 
+# Lock for thread-safe access to shared data
+storage_lock = threading.Lock()
+
 LOOPBACK_HOST = "127.0.0.1"
 PORT = 9999
 
@@ -38,28 +41,29 @@ def process_json_data(data):
         json_obj['loopback_interface'] = LOOPBACK_HOST
         
         # Categorize based on content
-        if 'value' in json_obj:
-            value = json_obj['value']
-            if isinstance(value, str):
-                json_storage['text_entries'].append(json_obj)
-                category = 'text'
-            elif isinstance(value, (int, float)):
-                json_storage['numeric_entries'].append(json_obj)
-                category = 'numeric'
+        with storage_lock:
+            if 'value' in json_obj:
+                value = json_obj['value']
+                if isinstance(value, str):
+                    json_storage['text_entries'].append(json_obj)
+                    category = 'text'
+                elif isinstance(value, (int, float)):
+                    json_storage['numeric_entries'].append(json_obj)
+                    category = 'numeric'
+                else:
+                    json_storage['mixed_entries'].append(json_obj)
+                    category = 'mixed'
             else:
                 json_storage['mixed_entries'].append(json_obj)
                 category = 'mixed'
-        else:
-            json_storage['mixed_entries'].append(json_obj)
-            category = 'mixed'
-        
-        # Create response
-        response = {
-            "status": "success",
-            "category": category,
-            "stored_count": len(json_storage[f'{category}_entries']),
-            "total_items": sum(len(v) for v in json_storage.values())
-        }
+            
+            # Create response
+            response = {
+                "status": "success",
+                "category": category,
+                "stored_count": len(json_storage[f'{category}_entries']),
+                "total_items": sum(len(v) for v in json_storage.values())
+            }
         
         return json.dumps(response)
         
@@ -115,7 +119,7 @@ def handle_client(client_socket, client_address):
         })
         try:
             client_socket.send((error_response + '\n').encode('utf-8'))
-        except:
+        except Exception:
             pass  # Socket may already be closed
     
     finally:
@@ -160,11 +164,12 @@ def start_server():
         server_socket.close()
         
         # Print final statistics
-        print(f"\nFinal Statistics:")
-        print(f"  Text entries: {len(json_storage['text_entries'])}")
-        print(f"  Numeric entries: {len(json_storage['numeric_entries'])}")
-        print(f"  Mixed entries: {len(json_storage['mixed_entries'])}")
-        print(f"  Total: {sum(len(v) for v in json_storage.values())}")
+        with storage_lock:
+            print(f"\nFinal Statistics:")
+            print(f"  Text entries: {len(json_storage['text_entries'])}")
+            print(f"  Numeric entries: {len(json_storage['numeric_entries'])}")
+            print(f"  Mixed entries: {len(json_storage['mixed_entries'])}")
+            print(f"  Total: {sum(len(v) for v in json_storage.values())}")
 
 if __name__ == "__main__":
     start_server()

@@ -84,7 +84,8 @@ const server = http.createServer((req, res) => {
                     status: 'error',
                     message: 'Request body too large (max 1MB)'
                 }));
-                req.connection.destroy();
+                req.socket.destroy();
+                return;
             }
         });
         
