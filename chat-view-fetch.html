@@ -1,0 +1,59 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Chat Viewer (fetch)</title>
+  <style>
+    body { font-family: system-ui; background:#f4f7fb; padding:20px; }
+    .chat { max-width:720px; margin:0 auto; display:flex; flex-direction:column; gap:8px; }
+    .message { display:flex; max-width:80%; padding:10px 14px; border-radius:14px; }
+    .you { align-self:flex-start; background:#fff; color:#111; box-shadow:0 1px 2px rgba(0,0,0,0.06); }
+    .me  { align-self:flex-end; background:#0b93f6; color:white; }
+    .meta { font-size:11px; opacity:.6; margin-top:6px; }
+    pre { white-space:pre-wrap; word-break:break-word; margin:0; }
+  </style>
+</head>
+<body>
+  <h2>Local Chat Viewer</h2>
+  <p>Opens <code>messages.json</code> from the same folder. Run a local HTTP server (e.g. <code>python -m http.server</code>) and open this page at <code>http://localhost:8000/chat-view-fetch.html</code>.</p>
+  <div id="chat" class="chat"></div>
+
+  <script>
+    async function load() {
+      try {
+        const res = await fetch('messages.json', { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        if (!Array.isArray(data)) throw new Error('JSON root must be an array');
+        render(data);
+      } catch (err) {
+        document.getElementById('chat').innerText = 'Error loading messages.json: ' + err.message;
+      }
+    }
+
+    function render(messages) {
+      const chatEl = document.getElementById('chat');
+      chatEl.innerHTML = '';
+      messages.forEach(msg => {
+        const s = (typeof msg.sender === 'string') ? msg.sender.toLowerCase() : '';
+        const cls = (s === 'you' || s === 'left') ? 'you' : 'me';
+        const wrapper = document.createElement('div');
+        wrapper.className = `message ${cls}`;
+        const timeHtml = msg.time ? `<div class="meta">${new Date(msg.time).toLocaleString()}</div>` : '';
+        wrapper.innerHTML = `<div><pre>${escapeHtml(msg.text ?? '')}</pre>${timeHtml}</div>`;
+        chatEl.appendChild(wrapper);
+      });
+      chatEl.lastElementChild?.scrollIntoView();
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+
+    load();
+  </script>
+</body>
+</html>

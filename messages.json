@@ -1,0 +1,7 @@
+[
+  {"sender":"you","text":"Hey, are you free to review the draft I sent earlier? I added the new section and some examples."},
+  {"sender":"i","text":"Yes, I saw it. I like the examples but think the introduction could be clearer. I'll add comments inline."},
+  {"sender":"you","text":"Great, thanks! Also can we move the timeline earlier by two days? That should help with the schedule."},
+  {"sender":"i","text":"Sure — I'll update the timeline and the task list. Expect an update by end of day."
+} 
+]
