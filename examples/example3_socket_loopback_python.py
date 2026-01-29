@@ -16,7 +16,6 @@ Usage:
 import socket
 import json
 import threading
-import time
 from datetime import datetime
 
 LOOPBACK_HOST = "127.0.0.1"
@@ -75,9 +74,10 @@ def handle_client(client_socket, client_address):
     print(f"[{LOOPBACK_HOST}:{PORT}] New connection from {client_address}")
     
     try:
-        # Receive data
+        # Receive data with size limit (1MB max)
+        MAX_DATA_SIZE = 1024 * 1024
         data = b""
-        while True:
+        while len(data) < MAX_DATA_SIZE:
             chunk = client_socket.recv(1024)
             if not chunk:
                 break
@@ -85,6 +85,17 @@ def handle_client(client_socket, client_address):
             # Check for newline delimiter
             if b'\n' in data:
                 break
+        
+        if len(data) >= MAX_DATA_SIZE:
+            error_response = json.dumps({
+                "status": "error",
+                "message": "Request too large (max 1MB)"
+            })
+            try:
+                client_socket.send((error_response + '\n').encode('utf-8'))
+            except:
+                pass
+            return
         
         if data:
             request = data.decode('utf-8').strip()
@@ -102,7 +113,10 @@ def handle_client(client_socket, client_address):
             "status": "error",
             "message": str(e)
         })
-        client_socket.send((error_response + '\n').encode('utf-8'))
+        try:
+            client_socket.send((error_response + '\n').encode('utf-8'))
+        except:
+            pass  # Socket may already be closed
     
     finally:
         client_socket.close()

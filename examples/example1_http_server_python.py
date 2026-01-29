@@ -15,7 +15,6 @@ Usage:
 import http.server
 import socketserver
 import json
-from urllib.parse import urlparse, parse_qs
 
 PORT = 8080
 LOOPBACK_HOST = "127.0.0.1"
@@ -45,7 +44,25 @@ class JSONLoopbackHandler(http.server.BaseHTTPRequestHandler):
     
     def do_POST(self):
         """Handle POST requests to store JSON data"""
-        content_length = int(self.headers['Content-Length'])
+        try:
+            content_length = int(self.headers.get('Content-Length', 0))
+        except (ValueError, TypeError):
+            self.send_response(400)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            response = {"status": "error", "message": "Invalid Content-Length header"}
+            self.wfile.write(json.dumps(response).encode())
+            return
+        
+        # Limit request body size to 1MB
+        if content_length > 1024 * 1024:
+            self.send_response(413)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            response = {"status": "error", "message": "Request body too large (max 1MB)"}
+            self.wfile.write(json.dumps(response).encode())
+            return
+        
         post_data = self.rfile.read(content_length)
         
         try:

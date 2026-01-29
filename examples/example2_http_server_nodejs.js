@@ -45,8 +45,8 @@ function categorizeData(data) {
 const server = http.createServer((req, res) => {
     dataStore.stats.totalRequests++;
     
-    // CORS headers for loopback interface
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    // CORS headers for loopback interface only
+    res.setHeader('Access-Control-Allow-Origin', 'http://127.0.0.1');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     
@@ -72,9 +72,20 @@ const server = http.createServer((req, res) => {
     // POST - Store JSON data
     if (req.method === 'POST' && req.url === '/json') {
         let body = '';
+        const MAX_BODY_SIZE = 1024 * 1024; // 1MB limit
         
         req.on('data', chunk => {
             body += chunk.toString();
+            
+            // Check body size limit
+            if (body.length > MAX_BODY_SIZE) {
+                res.writeHead(413, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    status: 'error',
+                    message: 'Request body too large (max 1MB)'
+                }));
+                req.connection.destroy();
+            }
         });
         
         req.on('end', () => {
