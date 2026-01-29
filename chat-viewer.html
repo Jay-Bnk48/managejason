@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Copilot Chat Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f6f8fa;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+
+        h1 {
+            color: #24292e;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .header-info {
+            color: #586069;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #e1e4e8;
+        }
+
+        .chat-message {
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: #f6f8fa;
+            border-radius: 6px;
+            border-left: 4px solid #0366d6;
+        }
+
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e1e4e8;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .message-meta {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .user-badge {
+            background-color: #0366d6;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .timestamp {
+            color: #586069;
+            font-size: 13px;
+        }
+
+        .message-text {
+            color: #24292e;
+            font-size: 15px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin-bottom: 15px;
+            background-color: white;
+            padding: 12px;
+            border-radius: 4px;
+        }
+
+        .response-section {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: white;
+            border-radius: 6px;
+            border: 1px solid #e1e4e8;
+        }
+
+        .response-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            color: #28a745;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .response-text {
+            color: #24292e;
+            font-size: 14px;
+            line-height: 1.6;
+            margin: 8px 0;
+        }
+
+        .tool-call {
+            background-color: #fff5b1;
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin: 5px 0;
+            font-size: 13px;
+            color: #735c0f;
+        }
+
+        .tool-call-header {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #586069;
+        }
+
+        .error {
+            background-color: #ffeef0;
+            color: #d73a49;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #d73a49;
+        }
+
+        .agent-info {
+            display: inline-block;
+            background-color: #e1e4e8;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #24292e;
+        }
+
+        .variable-badge {
+            display: inline-block;
+            background-color: #dbedff;
+            color: #0366d6;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            margin: 2px;
+        }
+
+        .variables-section {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: white;
+            border-radius: 4px;
+            border: 1px solid #e1e4e8;
+        }
+
+        .result-info {
+            margin-top: 10px;
+            color: #586069;
+            font-size: 12px;
+            font-style: italic;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .container {
+                padding: 15px;
+            }
+            
+            .message-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>GitHub Copilot Chat Viewer</h1>
+        <div class="header-info">
+            <div id="chat-info"></div>
+        </div>
+        <div id="loading" class="loading">Loading chat messages...</div>
+        <div id="error" class="error" style="display: none;"></div>
+        <div id="chat-container"></div>
+    </div>
+
+    <script>
+        async function loadChat() {
+            try {
+                const response = await fetch('chat.json');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const chatData = await response.json();
+                displayChat(chatData);
+            } catch (error) {
+                document.getElementById('loading').style.display = 'none';
+                const errorDiv = document.getElementById('error');
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = `Error loading chat: ${error.message}. Make sure chat.json is in the same folder as this HTML file.`;
+            }
+        }
+
+        function displayChat(chatData) {
+            document.getElementById('loading').style.display = 'none';
+            
+            const chatInfo = document.getElementById('chat-info');
+            chatInfo.innerHTML = `
+                <strong>Responder:</strong> ${escapeHtml(chatData.responderUsername)}<br>
+                <strong>Location:</strong> ${escapeHtml(chatData.initialLocation)}<br>
+                <strong>Total Messages:</strong> ${chatData.requests.length}
+            `;
+
+            const container = document.getElementById('chat-container');
+            chatData.requests.forEach((request, index) => {
+                const messageDiv = createMessageElement(request, index + 1);
+                container.appendChild(messageDiv);
+            });
+        }
+
+        function createMessageElement(request, index) {
+            const div = document.createElement('div');
+            div.className = 'chat-message';
+            
+            const timestamp = new Date(request.timestamp).toLocaleString();
+            const messageText = request.message.text;
+            
+            let html = `
+                <div class="message-header">
+                    <div class="message-meta">
+                        <span class="user-badge">USER</span>
+                        <span>Message #${index}</span>
+                        ${request.agent ? `<span class="agent-info">${escapeHtml(request.agent.fullName)}</span>` : ''}
+                    </div>
+                    <span class="timestamp">${timestamp}</span>
+                </div>
+                <div class="message-text">${escapeHtml(messageText)}</div>
+            `;
+
+            if (request.variableData && request.variableData.variables && request.variableData.variables.length > 0) {
+                html += '<div class="variables-section"><strong>Variables:</strong><br>';
+                request.variableData.variables.forEach(variable => {
+                    html += `<span class="variable-badge">${escapeHtml(variable.name || variable.id)}</span>`;
+                });
+                html += '</div>';
+            }
+
+            if (request.response && request.response.length > 0) {
+                html += '<div class="response-section">';
+                html += '<div class="response-header">🤖 Copilot Response</div>';
+                
+                request.response.forEach(item => {
+                    if (item.kind === 'toolInvocationSerialized') {
+                        const toolName = item.toolId || 'Tool';
+                        html += `<div class="tool-call">
+                            <div class="tool-call-header">🔧 ${escapeHtml(toolName)}</div>
+                            ${item.invocationMessage ? escapeHtml(extractText(item.invocationMessage)) : ''}
+                        </div>`;
+                    } else if (item.value) {
+                        html += `<div class="response-text">${escapeHtml(item.value)}</div>`;
+                    }
+                });
+                
+                html += '</div>';
+            }
+
+            if (request.result && request.result.details) {
+                html += `<div class="result-info">
+                    Model: ${escapeHtml(request.result.details)}
+                </div>`;
+            }
+
+            div.innerHTML = html;
+            return div;
+        }
+
+        function extractText(obj) {
+            if (typeof obj === 'string') return obj;
+            if (obj && obj.value) return obj.value;
+            return '';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        loadChat();
+    </script>
+</body>
+</html>
