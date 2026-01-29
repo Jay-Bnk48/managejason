@@ -45,10 +45,4 @@ http://localhost:8000/chat-view-fetch.html
 ]
 ```
 
-## Alternatives
 
-- If you prefer not to run a server, use a local file-input version (file picker) that reads a JSON file via the browser File API. I can add that if you want.
-
-## License
-
-MIT
